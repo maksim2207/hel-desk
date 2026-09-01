@@ -7,6 +7,8 @@ export default class TicketForm {
 
   open(mode, ticket = null) {
     this.form.reset();
+    const errorEl = this.modalEl.querySelector('.form-error');
+    if (errorEl) errorEl.remove();
     if (mode === 'add') {
       this.titleEl.textContent = 'Добавить тикет';
       if (this.form.elements.id) this.form.elements.id.value = '';

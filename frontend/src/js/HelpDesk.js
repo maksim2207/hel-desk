@@ -61,6 +61,16 @@ export default class HelpDesk {
           </div>
         </div>
       </div>
+
+      <div class="modal-overlay hidden" id="error-modal">
+        <div class="modal-content">
+          <h3 class="modal-title">Ошибка</h3>
+          <p class="modal-text" id="error-modal-text"></p>
+          <div class="modal-actions">
+            <button type="button" class="modal-btn modal-btn-ok" id="error-modal-ok">Ок</button>
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -68,6 +78,33 @@ export default class HelpDesk {
     this.listEl = this.container.querySelector('#tickets-list');
     this.ticketModal = new TicketForm(this.container.querySelector('#ticket-modal'));
     this.deleteModal = this.container.querySelector('#delete-modal');
+    this.errorModal = this.container.querySelector('#error-modal');
+    this.errorModalText = this.container.querySelector('#error-modal-text');
+  }
+
+  showError(message) {
+    this.errorModalText.textContent = message;
+    this.errorModal.classList.remove('hidden');
+  }
+
+  showFormError(message) {
+    const existing = this.ticketModal.modalEl.querySelector('.form-error');
+    if (existing) existing.remove();
+
+    const errorEl = document.createElement('div');
+    errorEl.className = 'form-error';
+    errorEl.textContent = message;
+    errorEl.style.cssText = 'color: #dc2626; font-size: 13px; margin-bottom: 12px;';
+
+    const { form } = this.ticketModal;
+    form.insertBefore(errorEl, form.firstChild);
+
+    const nameInput = form.querySelector('#ticket-name');
+    nameInput.style.borderColor = '#dc2626';
+    nameInput.addEventListener('input', function resetBorder() {
+      nameInput.style.borderColor = '';
+      nameInput.removeEventListener('input', resetBorder);
+    });
   }
 
   registerEvents() {
@@ -81,30 +118,54 @@ export default class HelpDesk {
       this.ticketToDelete = null;
     });
 
+    this.container.querySelector('#error-modal-ok').addEventListener('click', () => {
+      this.errorModal.classList.add('hidden');
+    });
+
     this.ticketModal.form.addEventListener('submit', (e) => {
       e.preventDefault();
       const { id, name, description } = this.ticketModal.getData();
 
+      if (!name || !name.trim()) {
+        this.showFormError('Поле «Краткое описание» обязательно для заполнения');
+        return;
+      }
+
+      const trimmedName = name.trim();
+
       if (id) {
-        this.ticketService.update(id, { name, description }, () => {
-          this.ticketModal.close();
-          this.refresh();
-        });
+        this.ticketService.update(
+          id,
+          { name: trimmedName, description },
+          () => {
+            this.ticketModal.close();
+            this.refresh();
+          },
+          (msg) => this.showError(msg),
+        );
       } else {
-        this.ticketService.create({ name, description, status: false }, () => {
-          this.ticketModal.close();
-          this.refresh();
-        });
+        this.ticketService.create(
+          { name: trimmedName, description, status: false },
+          () => {
+            this.ticketModal.close();
+            this.refresh();
+          },
+          (msg) => this.showError(msg),
+        );
       }
     });
 
     this.container.querySelector('#confirm-delete-btn').addEventListener('click', () => {
       if (this.ticketToDelete) {
-        this.ticketService.delete(this.ticketToDelete, () => {
-          this.deleteModal.classList.add('hidden');
-          this.ticketToDelete = null;
-          this.refresh();
-        });
+        this.ticketService.delete(
+          this.ticketToDelete,
+          () => {
+            this.deleteModal.classList.add('hidden');
+            this.ticketToDelete = null;
+            this.refresh();
+          },
+          (msg) => this.showError(msg),
+        );
       }
     });
 
@@ -115,12 +176,29 @@ export default class HelpDesk {
 
       if (e.target.classList.contains('ticket-status')) {
         const isDone = e.target.classList.contains('done');
-        this.ticketService.update(id, { status: !isDone }, () => this.refresh());
+        this.ticketService.update(
+          id,
+          { status: !isDone },
+          () => {
+            if (!isDone) {
+              e.target.classList.add('done');
+              e.target.textContent = '✓';
+            } else {
+              e.target.classList.remove('done');
+              e.target.textContent = '';
+            }
+          },
+          (msg) => this.showError(msg),
+        );
         return;
       }
 
       if (e.target.classList.contains('edit-btn')) {
-        this.ticketService.get(id, (fullTicket) => this.ticketModal.open('edit', fullTicket));
+        this.ticketService.get(
+          id,
+          (fullTicket) => this.ticketModal.open('edit', fullTicket),
+          (msg) => this.showError(msg),
+        );
         return;
       }
 
@@ -134,22 +212,29 @@ export default class HelpDesk {
       if (!descEl.classList.contains('hidden')) {
         descEl.classList.add('hidden');
       } else {
-        this.ticketService.get(id, (fullTicket) => {
-          descEl.textContent = fullTicket.description || 'Описание отсутствует';
-          descEl.classList.remove('hidden');
-        });
+        this.ticketService.get(
+          id,
+          (fullTicket) => {
+            descEl.textContent = fullTicket.description || 'Описание отсутствует';
+            descEl.classList.remove('hidden');
+          },
+          (msg) => this.showError(msg),
+        );
       }
     });
   }
 
   refresh() {
     this.listEl.innerHTML = '';
-    this.ticketService.list((tickets) => {
-      if (!tickets) return;
-      tickets.forEach((ticket) => {
-        const html = TicketView.renderTicket(ticket);
-        this.listEl.insertAdjacentHTML('beforeend', html);
-      });
-    });
+    this.ticketService.list(
+      (tickets) => {
+        if (!tickets) return;
+        tickets.forEach((ticket) => {
+          const html = TicketView.renderTicket(ticket);
+          this.listEl.insertAdjacentHTML('beforeend', html);
+        });
+      },
+      (msg) => this.showError(msg),
+    );
   }
 }

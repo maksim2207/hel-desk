@@ -1,7 +1,9 @@
 # Домашнее задание к занятию "7. Работа с HTTP"
 ### Система управления заявками (HelpDesk)
 
-[![Netology AHJ](https://github.com/maks220717/hel-desk/actions/workflows/web.yml/badge.svg)](https://github.com/maks220717/ссылка акшен)
+[![Netology AHJ](https://github.com/maksim2207/hel-desk/actions/workflows/web.yml/badge.svg)](https://maksim2207.github.io/hel-desk/)
+
+**Демо:** [https://maksim2207.github.io/hel-desk/](https://maksim2207.github.io/hel-desk/)
 
 Правила сдачи задания:
 
